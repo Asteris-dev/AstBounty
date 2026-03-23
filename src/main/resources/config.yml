@@ -1,0 +1,144 @@
+# ========================================================================
+# AstBounty - Награды за убийства | Конфигурация
+# ========================================================================
+#
+# Плейсхолдеры плагина (Требуется PlaceholderAPI):
+# * %astbounty_placed_total% - Количество заказов, сделанных игроком
+# * %astbounty_target_total% - Сколько раз этот игрок был целью заказа
+# * %astbounty_completed_total% - Количество выполненных заказов
+# * %astbounty_current_target% - Текущий ник цели охотника
+#
+# В плагине полная поддержка форматов цвета:
+# - Legacy: &a, &l
+# - HEX: &#FAEDCB
+# - MiniMessage: <gradient:#FAEDCB:#C9E4DE>Текст</gradient>
+# ========================================================================
+
+database:
+  # Тип базы данных: "SQLITE" (локальный файл) или "MYSQL" (внешняя БД)
+  type: "SQLITE"
+  mysql:
+    host: ""
+    port: 3306
+    database: ""
+    username: ""
+    password: ""
+    use-ssl: false
+
+settings:
+  # Символ валюты, который будет отображаться после суммы, отображается заполнителем {symbol}
+  currency-symbol: "$"
+
+  # Минимальная сумма для создания заказа
+  min-bounty-amount: 1000
+
+  # Лимит ставок от разных людей на одного и того же игрока
+  max-bounties-per-target: 5
+
+  # Максимальное количество активных заказов, которые может создать один игрок
+  max-bounties-per-assigner: 3
+
+  # Кулдаун (в секундах) на заказ одного и того же игрока одним и тем же человеком
+  same-target-cooldown-seconds: 86400
+
+  # Время (в секундах), через которое заказ полностью удаляется, если его никто не взял
+  global-expiration-seconds: 259200
+
+  # Настройка стоимости взятия заказа исполнителем
+  bounty-take-cost:
+    # Тип: PERCENT - сумма расчитывается как процент от общего банка заказа,
+    # Тип: FIXED - фиксированная сумма
+    type: PERCENT
+    value: 10.0
+
+  # Время (в секундах), которое даётся охотнику на выполнение заказа
+  time-limit-seconds: 86400
+
+  # Время ожидания (в секундах) перед тем, как игрок сможет взять новый заказ после провала
+  fail-cooldown-seconds: 43200
+
+  # Формат отображения времени. Доступно: %d% (дни), %h% (часы), %m% (минуты), %s% (секунды)
+  time-format: "%d%д. %h%ч. %m%м. %s%с."
+
+  # Ставить ли таймер на паузу, если цель вышла с сервера
+  pause-timer-on-offline: true
+
+  # Анонимные заказы
+  anonymous:
+    enabled: true # Разрешены ли анонимные заказы
+    cost: 500 # Доп. сумма на анонимность
+    name: "&8Аноним" # Отображение
+    return-on-expire: true # Возвращать ли эту сумму при отмене заказа (Если он истёк)
+    money-format: "{money} &a+ {cost}" # Этот формат отображается в чате, в сообщении при создании заказа (bounty-placed)
+
+  # Выкуп своей жизни
+  buyout:
+    enabled: true # Можно ли будет выкупать заказ на себя
+    return-money: true # Возвращать ли деньги всем заказчикам, если заказ был выкуплен
+    multiplier: 1.5 # Множитель цены выкупа (Общий банк * множитель)
+
+  # Выпадение "трофея", головы при убийстве цели
+  trophy-head:
+    enabled: true # Включение/выключение этой функции
+    name: "&cГолова {target}"
+    lore:
+      - "&7Убит охотником: &c{hunter}"
+      - "&7Награда составляла: &e{money} {symbol}"
+      - "&7Дата: &a{date}"
+
+  # Постоянный текст над инвентарем для охотника
+  actionbar:
+    enabled: true
+    message: "<gradient:#FAEDCB:#C9E4DE>Активен заказ за голову. Цель: {name}. Награда: {money}{symbol}</gradient>"
+
+# Озвучка
+sounds:
+  place: "ENTITY_EXPERIENCE_ORB_PICKUP;1.0;1.0" # Создание заказа
+  take: "ENTITY_ENDER_DRAGON_GROWL;1.0;1.0" # Взятие заказа охотником
+  complete: "UI_TOAST_CHALLENGE_COMPLETE;1.0;1.0" # Выполнение заказа
+  fail: "ENTITY_VILLAGER_NO;1.0;1.0" # Провал заказа (при истечении времени)
+  buyout: "BLOCK_ANVIL_USE;1.0;1.0" # Выкуп заказа
+  error: "BLOCK_NOTE_BLOCK_BASS;1.0;1.0" # Ошибки
+  click: "UI_BUTTON_CLICK;1.0;1.0" # Кнопки в настройке заказа
+
+messages:
+  prefix: "&#FAEDCB[AstBounty] &r"
+  no-permission: "&cУ вас нет прав для этого."
+  usage: "&cИспользование: /bounty <игрок> <сумма>"
+  not-enough-money: "&cНедостаточно средств."
+  invalid-amount: "&cСумма должна быть целым числом больше нуля."
+  min-amount: "&cМинимальная сумма заказа: {money} {symbol}."
+  max-assigner-bounties: "&cВы достигли лимита! Максимум активных заказов от вас: {max}."
+  place-cooldown: "&cВы сможете снова заказать этого игрока только через {time}."
+  player-offline: "&cИгрок не найден или оффлайн."
+  self-bounty: "&cВы не можете назначить награду за себя."
+  cannot-hunt-self: "&cВы не можете взять заказ на самого себя!"
+  target-limit: "&cНа этого игрока достигнут лимит заказов."
+  menu-empty: "&cВ данный момент активных заказов нет."
+
+  status-online: "&aОнлайн"
+  status-offline: "&cОффлайн"
+  current-bounty-status: "<gradient:#A8FF78:#78FFD6>Ваша цель: {target} [{status}] | Награда: {money}{symbol} | Осталось: {time}</gradient>"
+
+  bounty-placed: "<gradient:#A8FF78:#78FFD6>✔ Вы назначили награду за {target} в размере {money}{symbol}</gradient>"
+  target-notified-placed: "<gradient:#FF416C:#FF4B2B>☠ Внимание! На вашу голову назначена награда: {money}{symbol}!</gradient>"
+  bounty-accepted: "<gradient:#A8FF78:#78FFD6>⚔ Вы взяли заказ на {target}. У вас есть {time}</gradient>"
+  target-notified-taken: "<gradient:#FF416C:#FF4B2B>☠ Внимание! Охотник {hunter} вышел за вашей головой!</gradient>"
+
+  # Уведомления о входе/выходе цели
+  target-left: "&cВаша цель {target} покинула игру. Таймер приостановлен."
+  target-joined: "&aВаша цель {target} вернулась в игру! Охота продолжается."
+
+  bounty-failed: "<gradient:#FF416C:#FF4B2B>✖ Вы не успели убить {target}. Заказ провален.</gradient>"
+  bounty-expired: "&cВремя действия заказа на {target} истекло. Банк возвращен заказчикам."
+  bounty-completed: "<gradient:#f12711:#f5af19>☠ Вы убили {target} и получили {money}{symbol}!</gradient>"
+  bounty-reward-returned: "<gradient:#A8FF78:#78FFD6>✔ Охотник {hunter} выполнил ваш заказ на {target}! Ваша доля: {money}{symbol}</gradient>"
+  buyout-notified-assigner: "&cИгрок {target}, на которого вы ставили награду, откупился!"
+  on-cooldown: "&cВы провалили прошлый заказ. Ждите {time}."
+  already-hunting: "&cУ вас уже есть активный заказ."
+  buyout-success: "<gradient:#A8FF78:#78FFD6>✔ Вы успешно выкупили свою жизнь за {money}{symbol}!</gradient>"
+  reloaded: "&aПлагин AstBounty успешно перезагружен."
+
+  pending-setup: "&cЗавершите настройку предыдущего заказа!"
+  cannot-hunt-invested: "&cВы не можете взять заказ, в который вы вложились."
+  no-target: "Нет цели" # Вывод плейсхолдера %astbounty_current_target% если цели нет

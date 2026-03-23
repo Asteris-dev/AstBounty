@@ -1,0 +1,108 @@
+# ========================================================================
+# AstBounty - Награды за убийства | GUI-меню
+# ========================================================================
+#
+# В плагине полная поддержка форматов цвета:
+# - Legacy: &a, &l
+# - HEX: &#FAEDCB
+# - MiniMessage: <gradient:#FAEDCB:#C9E4DE>Текст</gradient>
+# ========================================================================
+
+# Меню создания заказа (/bounty <игрок> <сумма>)
+percentage-menu:
+  title: "&8Настройка заказа"
+  size: 27
+
+  # Статус анонимности
+  status-on: "&aВключена"
+  status-off: "&cВыключена"
+
+  anon-money-format: "{money} {symbol} &a+ {cost}" # Формат вывода Суммы если включена анонимность
+  percent-format: "{percentage}% &8(&7Вам: &a{hunter_percentage}%&8)"
+
+  items:
+    info-book:
+      slot: 22
+      material: BOOK
+      name: "&aИнформация о заказе"
+      lore:
+        - "&7Цель: &c{target}"
+        - "&7Сумма: &e{money} {symbol}"
+        - "&7Процент убийце: &a{percentage}%"
+        - "&7Анонимность: {status}"
+    confirm:
+      slot: 24
+      material: GREEN_STAINED_GLASS_PANE
+      name: "&a✔ Подтвердить заказ"
+    anonymous-toggle:
+      slot: 20
+      material: SKELETON_SKULL
+      name: "&8Скрыть ник (Аноним)"
+      lore:
+        - "&7Сделать ваш заказ анонимным."
+        - "&7Доп. стоимость: &e{cost} {symbol}"
+        - "&7Статус: {status}"
+    add-1:
+      slot: 5
+      material: LIME_CARPET
+      name: "&a+1%"
+    add-10:
+      slot: 6
+      material: LIME_WOOL
+      name: "&a+10%"
+    sub-1:
+      slot: 3
+      material: RED_CARPET
+      name: "&c-1%"
+    sub-10:
+      slot: 2
+      material: RED_WOOL
+      name: "&c-10%"
+
+# Главное меню со всеми заказами (/bounty)
+main-menu:
+  title: "&8Активные заказы"
+  size: 54
+  items:
+    bounty-head:
+      name: "&cЗаказ на: {target}"
+      lore:
+        - "&7Общий банк: &e{total_bank} {symbol}"
+        - "&7Средний % убийце: &a{avg_killer_percent}%"
+        - "&7Истекает через: &e{global_expire}"
+        - ""
+        - "&7Заказчики:"
+        - "{assigners}"
+        - ""
+        - "&eКликните, чтобы взять заказ за {take_cost} {symbol}!"
+        - "{buyout_lore}"
+    assigner-format: "&8- &7{name}: &e{money} {symbol} &8(&a{killer_percent}%&8)" # Формат для списка заказчиков
+    buyout-format: "&cКликните ПКМ, чтобы выкупить себя за {money} {symbol}!" # Доп. строка которая показывается только игроку на которого этот заказ
+
+    decor:
+      material: BLACK_STAINED_GLASS_PANE
+      name: " "
+      slots: [36, 37, 38, 39, 40, 41, 42, 43, 44]
+
+    info-item:
+      slot: 48
+      material: BOOK
+      name: "&aИнформация"
+      lore:
+        - "&7Здесь вы можете взять контракт"
+        - "&7на убийство других игроков."
+        - ""
+        - "&eКоманды:"
+        - "&f/bounty &8- &7Открыть это меню"
+        - "&f/bounty <ник> <сумма> &8- &7Создать заказ"
+
+    stats-item:
+      slot: 50
+      material: PAPER
+      name: "&eВаша статистика"
+      lore:
+        - "&7Сделано заказов: &a{placed_total}"
+        - "&7Был целью: &c{target_total}"
+        - "&7Выполнено: &e{completed_total}"
+        - ""
+        - "&7Текущая цель: &6{current_target}"
