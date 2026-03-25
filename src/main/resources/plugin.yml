@@ -1,20 +1,6 @@
 name: AstBounty
 version: 1.0
-main: ru.asteris.Main
+main: ru.asteris.astbounty.Main
 api-version: 1.16
-authors: [Asteris]
-depend: [Vault]
-softdepend: [PlaceholderAPI]
-commands:
-  bounty:
-    description: 'Создание заказа или открытие меню заказов'
-    usage: /bounty <игрок> <сумма>
-    permission: astbounty.use
-  astbounty:
-    description: 'Настройка плагина'
-    permission: astbounty.admin
-permissions:
-  astbounty.use:
-    default: true
-  astbounty.admin:
-    default: op
+author: Asteris
+depend: [AstLib, Vault]

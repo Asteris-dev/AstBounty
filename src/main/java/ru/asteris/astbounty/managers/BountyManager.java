@@ -1,4 +1,4 @@
-package ru.asteris.managers;
+package ru.asteris.astbounty.managers;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -8,8 +8,8 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
-import ru.asteris.Main;
-import ru.asteris.utils.ColorUtils;
+import ru.asteris.astbounty.Main;
+import ru.asteris.astlib.utils.ColorUtils;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -133,22 +133,13 @@ public class BountyManager {
         }
     }
 
-    public void removeBounty(UUID target) {
-        bounties.remove(target);
-    }
-
-    public Bounty getBounty(UUID target) {
-        return bounties.get(target);
-    }
-
-    public Collection<Bounty> getAllBounties() {
-        return bounties.values();
-    }
+    public void removeBounty(UUID target) { bounties.remove(target); }
+    public Bounty getBounty(UUID target) { return bounties.get(target); }
+    public Collection<Bounty> getAllBounties() { return bounties.values(); }
 
     public void addBounty(UUID target, UUID assigner, double amount, int killerPercent, boolean isAnonymous) {
         Bounty bounty = bounties.computeIfAbsent(target, Bounty::new);
         bounty.addContribution(new Contribution(assigner, amount, killerPercent, isAnonymous));
-
         long globalSeconds = plugin.getConfig().getLong("settings.global-expiration-seconds", 604800);
         bounty.setGlobalExpireTime(System.currentTimeMillis() + (globalSeconds * 1000L));
     }
@@ -169,17 +160,9 @@ public class BountyManager {
         placeCooldowns.put(key, System.currentTimeMillis() + (seconds * 1000L));
     }
 
-    public boolean hasActiveBounty(UUID hunter) {
-        return bounties.values().stream().anyMatch(b -> hunter.equals(b.getHunter()));
-    }
-
-    public boolean hasCooldown(UUID player) {
-        return cooldowns.containsKey(player) && cooldowns.get(player) > System.currentTimeMillis();
-    }
-
-    public long getCooldownLeft(UUID player) {
-        return hasCooldown(player) ? cooldowns.get(player) - System.currentTimeMillis() : 0;
-    }
+    public boolean hasActiveBounty(UUID hunter) { return bounties.values().stream().anyMatch(b -> hunter.equals(b.getHunter())); }
+    public boolean hasCooldown(UUID player) { return cooldowns.containsKey(player) && cooldowns.get(player) > System.currentTimeMillis(); }
+    public long getCooldownLeft(UUID player) { return hasCooldown(player) ? cooldowns.get(player) - System.currentTimeMillis() : 0; }
 
     public void setCooldown(UUID player) {
         long seconds = plugin.getConfig().getLong("settings.fail-cooldown-seconds");
@@ -190,10 +173,7 @@ public class BountyManager {
         FileConfiguration config = plugin.getConfig();
         String type = config.getString("settings.bounty-take-cost.type", "PERCENT");
         double value = config.getDouble("settings.bounty-take-cost.value", 10.0);
-
-        if (type.equalsIgnoreCase("PERCENT")) {
-            return bounty.getTotalBank() * (value / 100.0);
-        }
+        if (type.equalsIgnoreCase("PERCENT")) return bounty.getTotalBank() * (value / 100.0);
         return value;
     }
 
@@ -206,8 +186,8 @@ public class BountyManager {
         if (bounty == null || !killer.getUniqueId().equals(bounty.getHunter())) return;
 
         FileConfiguration config = plugin.getConfig();
-        String prefix = config.getString("messages.prefix", "");
-        String symbol = config.getString("settings.currency-symbol", "$");
+        String prefix = config.getString("messages.prefix");
+        String symbol = config.getString("settings.currency-symbol");
         String targetName = Bukkit.getOfflinePlayer(target).getName() != null ? Bukkit.getOfflinePlayer(target).getName() : "Unknown";
         double totalEarned = 0;
 
@@ -217,41 +197,41 @@ public class BountyManager {
             totalEarned += killerShare;
 
             OfflinePlayer assignerPlayer = Bukkit.getOfflinePlayer(c.getAssigner());
-            plugin.getEconomy().depositPlayer(assignerPlayer, assignerShare);
+            ru.asteris.astlib.Main.getInstance().getVaultManager().deposit(assignerPlayer, assignerShare);
 
             if (assignerShare > 0 && assignerPlayer.isOnline() && assignerPlayer.getPlayer() != null) {
-                String returnMsg = config.getString("messages.bounty-reward-returned", "")
+                String returnMsg = config.getString("messages.bounty-reward-returned")
                         .replace("{target}", targetName)
                         .replace("{hunter}", killer.getName())
                         .replace("{money}", ColorUtils.formatMoney(assignerShare))
                         .replace("{symbol}", symbol);
-                assignerPlayer.getPlayer().sendMessage(ColorUtils.parse(prefix + returnMsg));
+                assignerPlayer.getPlayer().sendMessage(ColorUtils.colorize(assignerPlayer.getPlayer(), prefix + returnMsg));
             }
         }
 
-        plugin.getEconomy().depositPlayer(killer, totalEarned);
+        ru.asteris.astlib.Main.getInstance().getVaultManager().deposit(killer, totalEarned);
         plugin.getStatsManager().addCompleted(killer.getUniqueId());
         bounties.remove(target);
 
-        String msg = config.getString("messages.bounty-completed", "")
+        String msg = config.getString("messages.bounty-completed")
                 .replace("{target}", targetName)
                 .replace("{money}", ColorUtils.formatMoney(totalEarned))
                 .replace("{symbol}", symbol);
-        killer.sendMessage(ColorUtils.parse(prefix + msg));
+        killer.sendMessage(ColorUtils.colorize(killer, prefix + msg));
         playSound(killer, "complete");
 
-        if (config.getBoolean("settings.trophy-head.enabled", true)) {
+        if (config.getBoolean("settings.trophy-head.enabled")) {
             ItemStack head = new ItemStack(Material.PLAYER_HEAD);
             SkullMeta meta = (SkullMeta) head.getItemMeta();
             if (meta != null) {
                 meta.setOwningPlayer(Bukkit.getOfflinePlayer(target));
-                meta.setDisplayName(ColorUtils.colorize(config.getString("settings.trophy-head.name", "").replace("{target}", targetName)));
+                meta.setDisplayName(ColorUtils.colorize(killer, config.getString("settings.trophy-head.name").replace("{target}", targetName)));
                 List<String> lore = new ArrayList<>();
                 SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm");
                 String dateStr = sdf.format(new Date());
 
                 for (String line : config.getStringList("settings.trophy-head.lore")) {
-                    lore.add(ColorUtils.colorize(line
+                    lore.add(ColorUtils.colorize(killer, line
                             .replace("{hunter}", killer.getName())
                             .replace("{money}", ColorUtils.formatMoney(totalEarned))
                             .replace("{symbol}", symbol)
@@ -263,8 +243,6 @@ public class BountyManager {
             }
             killer.getInventory().addItem(head).values().forEach(item -> killer.getWorld().dropItem(killer.getLocation(), item));
         }
-
-        plugin.getMenuManager().updateMenus();
     }
 
     private void startTasks() {
@@ -273,10 +251,9 @@ public class BountyManager {
             boolean actionBarEnabled = config.getBoolean("settings.actionbar.enabled");
             String actionBarMsg = config.getString("settings.actionbar.message", "");
             boolean pauseOffline = config.getBoolean("settings.pause-timer-on-offline", true);
-            String symbol = config.getString("settings.currency-symbol", "$");
+            String symbol = config.getString("settings.currency-symbol");
             long now = System.currentTimeMillis();
-            String prefix = config.getString("messages.prefix", "");
-            boolean menuNeedsUpdate = false;
+            String prefix = config.getString("messages.prefix");
 
             Iterator<Map.Entry<UUID, Bounty>> iterator = bounties.entrySet().iterator();
             while (iterator.hasNext()) {
@@ -293,15 +270,13 @@ public class BountyManager {
                             if (c.isAnonymous() && returnAnon) {
                                 refund += anonCost;
                             }
-                            plugin.getEconomy().depositPlayer(Bukkit.getOfflinePlayer(c.getAssigner()), refund);
+                            ru.asteris.astlib.Main.getInstance().getVaultManager().deposit(Bukkit.getOfflinePlayer(c.getAssigner()), refund);
                         }
 
                         String targetName = Bukkit.getOfflinePlayer(bounty.getTarget()).getName();
-                        String expireMsg = config.getString("messages.bounty-expired", "")
-                                .replace("{target}", targetName != null ? targetName : "Unknown");
+                        String expireMsg = config.getString("messages.bounty-expired").replace("{target}", targetName != null ? targetName : "Unknown");
                         Bukkit.broadcastMessage(ColorUtils.colorize(prefix + expireMsg));
                         iterator.remove();
-                        menuNeedsUpdate = true;
                     }
                     continue;
                 }
@@ -317,12 +292,10 @@ public class BountyManager {
                     Player hunter = Bukkit.getPlayer(hunterId);
                     if (hunter != null) {
                         OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(bounty.getTarget());
-                        String msg = config.getString("messages.bounty-failed", "")
-                                .replace("{target}", targetPlayer.getName() != null ? targetPlayer.getName() : "Unknown");
-                        hunter.sendMessage(ColorUtils.parse(prefix + msg));
+                        String msg = config.getString("messages.bounty-failed").replace("{target}", targetPlayer.getName() != null ? targetPlayer.getName() : "Unknown");
+                        hunter.sendMessage(ColorUtils.colorize(hunter, prefix + msg));
                         playSound(hunter, "fail");
                     }
-                    menuNeedsUpdate = true;
                     continue;
                 }
 
@@ -335,12 +308,9 @@ public class BountyManager {
                                 .replace("{name}", name)
                                 .replace("{money}", ColorUtils.formatMoney(bounty.getTotalBank()))
                                 .replace("{symbol}", symbol);
-                        hunter.sendActionBar(ColorUtils.parse(msg));
+                        hunter.sendActionBar(ColorUtils.colorize(hunter, msg));
                     }
                 }
-            }
-            if (menuNeedsUpdate) {
-                plugin.getMenuManager().updateMenus();
             }
         }, 20L, 20L);
     }
@@ -366,17 +336,9 @@ public class BountyManager {
         long hours = (totalSecs % 86400) / 3600;
         long mins = (totalSecs % 3600) / 60;
         long secs = totalSecs % 60;
-
-        String format = plugin.getConfig().getString("settings.time-format", "%d%д. %h%ч. %m%м. %s%с.");
-
-        if (days == 0) {
-            format = format.replace("%d%д. ", "").replace("%d%д.", "").replace("%d%d. ", "");
-        } else {
-            format = format.replace("%d%", String.valueOf(days));
-        }
-
-        return format.replace("%h%", String.valueOf(hours))
-                .replace("%m%", String.valueOf(mins))
-                .replace("%s%", String.valueOf(secs)).trim();
+        String format = plugin.getConfig().getString("settings.time-format");
+        if (days == 0) format = format.replace("%d%д. ", "").replace("%d%д.", "").replace("%d%d. ", "");
+        else format = format.replace("%d%", String.valueOf(days));
+        return format.replace("%h%", String.valueOf(hours)).replace("%m%", String.valueOf(mins)).replace("%s%", String.valueOf(secs)).trim();
     }
 }

@@ -1,4 +1,4 @@
-package ru.asteris.managers;
+package ru.asteris.astbounty.managers;
 
 import java.util.ArrayList;
 import java.util.List;
