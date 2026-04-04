@@ -28,6 +28,9 @@ settings:
   # Минимальная сумма для создания заказа
   min-bounty-amount: 1000
 
+  # Текст, который выводится вместо суммы, если награда — это предмет
+  item-reward-text: "&b[Предмет]"
+
   # Лимит ставок от разных людей на одного и того же игрока
   max-bounties-per-target: 5
 
@@ -42,10 +45,11 @@ settings:
 
   # Настройка стоимости взятия заказа исполнителем
   bounty-take-cost:
-    # Тип: PERCENT - сумма расчитывается как процент от общего банка заказа,
+    # Тип: PERCENT - сумма расчитывается как процент от общего банка заказа
     # Тип: FIXED - фиксированная сумма
     type: PERCENT
     value: 10.0
+    item-only-cost: 500.0 # Добавочная стоимость, если в заказе есть предметы (чтобы стоимость не была 0$)
 
   # Время (в секундах), которое даётся охотнику на выполнение заказа
   time-limit-seconds: 86400
@@ -72,6 +76,7 @@ settings:
     enabled: true # Можно ли будет выкупать заказ на себя
     return-money: true # Возвращать ли деньги всем заказчикам, если заказ был выкуплен
     multiplier: 1.5 # Множитель цены выкупа (Общий банк * множитель)
+    item-only-cost: 5000.0 # Добавочная стоимость, если в заказе есть предметы
 
   # Выпадение "трофея", головы при убийстве цели
   trophy-head:
@@ -105,18 +110,27 @@ messages:
   invalid-amount: "&cСумма должна быть целым числом больше нуля."
   min-amount: "&cМинимальная сумма заказа: {money} {symbol}."
   max-assigner-bounties: "&cВы достигли лимита! Максимум активных заказов от вас: {max}."
-  place-cooldown: "&cВы сможете снова заказать этого игрока только через {time}."
+  place-cooldown: "&cВы сможете снова заказать этого игрока только через {time}"
   player-offline: "&cИгрок не найден или оффлайн."
   self-bounty: "&cВы не можете назначить награду за себя."
   cannot-hunt-self: "&cВы не можете взять заказ на самого себя!"
   target-limit: "&cНа этого игрока достигнут лимит заказов."
   menu-empty: "&cВ данный момент активных заказов нет."
-
+  must-hold-item: "&cДля заказа предметом нужно взять его в руку!"
+  help:
+    - ""
+    - " <b><gradient:#FAEDCB:#C9E4DE>Награды за убийства</gradient></b>"
+    - ""
+    - " &f/bounty menu &7- Открыть меню заказов"
+    - " &f/bounty <игрок> <сумма> &7- Создать заказ (валюта)"
+    - " &f/bounty <игрок> item &7- Создать заказ (предмет)"
+    - ""
   status-online: "&aОнлайн"
   status-offline: "&cОффлайн"
-  current-bounty-status: "<gradient:#A8FF78:#78FFD6>Ваша цель: {target} [{status}] | Награда: {money}{symbol} | Осталось: {time}</gradient>"
+  current-bounty-status: "<gradient:#A8FF78:#78FFD6>Цель: {target} [{status}] | Награда: {money}{symbol} {item} | Осталось: {time}</gradient>"
 
-  bounty-placed: "<gradient:#A8FF78:#78FFD6>✔ Вы назначили награду за {target} в размере {money}{symbol}</gradient>"
+  bounty-money-placed: "<gradient:#A8FF78:#78FFD6>✔ Вы назначили награду за голову {target} в размере {money}{symbol}</gradient>"
+  bounty-item-placed: "<gradient:#A8FF78:#78FFD6>✔ Вы назначили предмет за голову {target}</gradient>"
   target-notified-placed: "<gradient:#FF416C:#FF4B2B>☠ Внимание! На вашу голову назначена награда: {money}{symbol}!</gradient>"
   bounty-accepted: "<gradient:#A8FF78:#78FFD6>⚔ Вы взяли заказ на {target}. У вас есть {time}</gradient>"
   target-notified-taken: "<gradient:#FF416C:#FF4B2B>☠ Внимание! Охотник {hunter} вышел за вашей головой!</gradient>"
@@ -127,7 +141,7 @@ messages:
 
   bounty-failed: "<gradient:#FF416C:#FF4B2B>✖ Вы не успели убить {target}. Заказ провален.</gradient>"
   bounty-expired: "&cВремя действия заказа на {target} истекло. Банк возвращен заказчикам."
-  bounty-completed: "<gradient:#f12711:#f5af19>☠ Вы убили {target} и получили {money}{symbol}!</gradient>"
+  bounty-completed: "<gradient:#f12711:#f5af19>☠ Вы убили {target} и получили {money}{symbol} {item}!</gradient>"
   bounty-reward-returned: "<gradient:#A8FF78:#78FFD6>✔ Охотник {hunter} выполнил ваш заказ на {target}! Ваша доля: {money}{symbol}</gradient>"
   buyout-notified-assigner: "&cИгрок {target}, на которого вы ставили награду, откупился!"
   on-cooldown: "&cВы провалили прошлый заказ. Ждите {time}."

@@ -8,8 +8,8 @@
 # - MiniMessage: <gradient:#FAEDCB:#C9E4DE>Текст</gradient>
 # ========================================================================
 
-# Меню создания заказа (/bounty <игрок> <сумма>)
-percentage-menu:
+# Меню создания заказа на монеты (/bounty <игрок> <сумма>)
+create-on-money:
   title: "&8Настройка заказа"
   size: 27
 
@@ -59,6 +59,36 @@ percentage-menu:
       material: RED_WOOL
       name: "&c-10%"
 
+# Меню создания заказа на предмет (/bounty <игрок> item)
+create-on-item:
+  title: "&8Настройка заказа"
+  size: 27
+
+  # Статус анонимности
+  status-on: "&aВключена"
+  status-off: "&cВыключена"
+
+  items:
+    info-book:
+      slot: 13
+      material: BOOK
+      name: "&aИнформация о заказе"
+      lore:
+        - "&7Цель: &c{target}"
+        - "&7Анонимность: {status}"
+    confirm:
+      slot: 15
+      material: GREEN_STAINED_GLASS_PANE
+      name: "&a✔ Подтвердить заказ"
+    anonymous-toggle:
+      slot: 11
+      material: SKELETON_SKULL
+      name: "&8Скрыть ник (Аноним)"
+      lore:
+        - "&7Сделать ваш заказ анонимным."
+        - "&7Доп. стоимость: &e{cost} {symbol}"
+        - "&7Статус: {status}"
+
 # Главное меню со всеми заказами (/bounty)
 main-menu:
   title: "&8Активные заказы"
@@ -76,8 +106,10 @@ main-menu:
         - ""
         - "&eКликните, чтобы взять заказ за {take_cost} {symbol}!"
         - "{buyout_lore}"
-    assigner-format: "&8- &7{name}: &e{money} {symbol} &8(&a{killer_percent}%&8)" # Формат для списка заказчиков
-    buyout-format: "&cКликните ПКМ, чтобы выкупить себя за {money} {symbol}!" # Доп. строка которая показывается только игроку на которого этот заказ
+      items-hint: "&b[Шифт-Клик] &7- Посмотреть предметы награды" # Подсказка, если в заказе есть предметы
+      assigner-money-format: "&8- &7{name}: &e{money} {symbol} &8(&a{killer_percent}%&8)" # Формат для списка заказчиков (монеты)
+      assigner-item-format: "&8- &7{name}: &b[Предмет]" # Формат для списка заказчиков (предмет)
+      buyout-format: "&cКликните ПКМ, чтобы выкупить себя за {money} {symbol}!" # Подсказка игроку на которого этот заказ
 
     decor:
       material: BLACK_STAINED_GLASS_PANE
@@ -93,8 +125,9 @@ main-menu:
         - "&7на убийство других игроков."
         - ""
         - "&eКоманды:"
-        - "&f/bounty &8- &7Открыть это меню"
-        - "&f/bounty <ник> <сумма> &8- &7Создать заказ"
+        - "&f/bounty menu &7- Открыть это меню"
+        - "&f/bounty <игрок> <сумма> &7- Создать заказ (валюта)"
+        - "&f/bounty <игрок> item &7- Создать заказ (предмет)"
 
     stats-item:
       slot: 50
@@ -106,3 +139,15 @@ main-menu:
         - "&7Выполнено: &e{completed_total}"
         - ""
         - "&7Текущая цель: &6{current_target}"
+
+# Меню просмотра предметов наград (Открывается на Шифт-Клик)
+items-menu:
+  title: "&8Предметы: {target}"
+  size: 54
+  item-lore:
+    - "&8&m                        "
+    - "&7От: &e{assigner}"
+  back-button:
+    slot: 49
+    material: BARRIER
+    name: "&cНазад к заказам"

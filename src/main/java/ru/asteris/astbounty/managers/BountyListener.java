@@ -8,10 +8,12 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
 import ru.asteris.astbounty.Main;
 import ru.asteris.astlib.utils.ColorUtils;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -41,6 +43,18 @@ public class BountyListener implements Listener {
         Player joined = event.getPlayer();
         plugin.getStatsManager().loadUser(joined.getUniqueId());
 
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            List<ItemStack> returnedItems = plugin.getDatabaseManager().getAndRemoveReturnedItems(joined.getUniqueId());
+            if (!returnedItems.isEmpty()) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    for (ItemStack item : returnedItems) {
+                        joined.getInventory().addItem(item).values().forEach(i -> joined.getWorld().dropItem(joined.getLocation(), i));
+                    }
+                    joined.sendMessage(ColorUtils.colorize(joined, plugin.getConfig().getString("messages.prefix", "") + "&a✔ Предметы с истекших заказов возвращены вам в инвентарь!"));
+                });
+            }
+        });
+
         Bounty bounty = plugin.getBountyManager().getBounty(joined.getUniqueId());
         if (bounty != null && bounty.getHunter() != null) {
             Player hunter = Bukkit.getPlayer(bounty.getHunter());
@@ -55,7 +69,11 @@ public class BountyListener implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         Player quit = event.getPlayer();
         plugin.getStatsManager().unloadUser(quit.getUniqueId());
-        pendingBounties.remove(quit.getUniqueId());
+
+        PendingBounty pending = pendingBounties.remove(quit.getUniqueId());
+        if (pending != null && pending.getItem() != null) {
+            plugin.getDatabaseManager().addReturnedItem(quit.getUniqueId(), pending.getItem());
+        }
 
         Bounty bounty = plugin.getBountyManager().getBounty(quit.getUniqueId());
         if (bounty != null && bounty.getHunter() != null) {
@@ -71,9 +89,18 @@ public class BountyListener implements Listener {
     public void onInventoryClose(InventoryCloseEvent event) {
         Player player = (Player) event.getPlayer();
         if (pendingBounties.containsKey(player.getUniqueId())) {
-            String menuTitle = ColorUtils.colorize(player, plugin.getMenuManager().getMenuConfig().getString("percentage-menu.title", ""));
+            PendingBounty pending = pendingBounties.get(player.getUniqueId());
+            if (pending.isUpdating()) return;
+
+            String basePath = pending.getItem() != null ? "create-on-item" : "create-on-money";
+            String menuTitle = ColorUtils.colorize(player, plugin.getMenuManager().getMenuConfig().getString(basePath + ".title", ""));
+
             if (event.getView().getTitle().equals(menuTitle)) {
                 pendingBounties.remove(player.getUniqueId());
+                if (pending.getItem() != null) {
+                    player.getInventory().addItem(pending.getItem()).values().forEach(i -> player.getWorld().dropItem(player.getLocation(), i));
+                    player.sendMessage(ColorUtils.colorize(player, plugin.getConfig().getString("messages.prefix", "") + "&eНастройка заказа отменена. Предмет возвращен."));
+                }
             }
         }
     }

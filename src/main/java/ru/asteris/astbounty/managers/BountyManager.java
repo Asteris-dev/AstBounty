@@ -59,9 +59,10 @@ public class BountyManager {
                         while (rsC.next()) {
                             UUID assigner = UUID.fromString(rsC.getString("assigner_uuid"));
                             double amount = rsC.getDouble("amount");
+                            ItemStack item = db.itemFromBase64(rsC.getString("item_data"));
                             int percent = rsC.getInt("killer_percentage");
                             boolean anon = rsC.getBoolean("is_anonymous");
-                            bounty.addContribution(new Contribution(assigner, amount, percent, anon));
+                            bounty.addContribution(new Contribution(assigner, amount, item, percent, anon));
                         }
                     }
                 }
@@ -85,7 +86,7 @@ public class BountyManager {
         String clearCooldowns = "DELETE FROM astbounty_cooldowns";
 
         String insertBounty = "INSERT INTO astbounty_bounties (target_uuid, hunter_uuid, time_left, global_expire_time) VALUES (?, ?, ?, ?)";
-        String insertContrib = "INSERT INTO astbounty_contributions (target_uuid, assigner_uuid, amount, killer_percentage, is_anonymous) VALUES (?, ?, ?, ?, ?)";
+        String insertContrib = "INSERT INTO astbounty_contributions (target_uuid, assigner_uuid, amount, item_data, killer_percentage, is_anonymous) VALUES (?, ?, ?, ?, ?, ?)";
         String insertCooldown = "INSERT INTO astbounty_cooldowns (assigner_uuid, target_uuid, expire_time) VALUES (?, ?, ?)";
 
         try (Connection conn = db.getConnection();
@@ -111,8 +112,9 @@ public class BountyManager {
                         psC.setString(1, bounty.getTarget().toString());
                         psC.setString(2, c.getAssigner().toString());
                         psC.setDouble(3, c.getAmount());
-                        psC.setInt(4, c.getKillerPercentage());
-                        psC.setBoolean(5, c.isAnonymous());
+                        psC.setString(4, c.getItem() != null ? db.itemToBase64(c.getItem()) : null);
+                        psC.setInt(5, c.getKillerPercentage());
+                        psC.setBoolean(6, c.isAnonymous());
                         psC.executeUpdate();
                     }
                 }
@@ -137,9 +139,9 @@ public class BountyManager {
     public Bounty getBounty(UUID target) { return bounties.get(target); }
     public Collection<Bounty> getAllBounties() { return bounties.values(); }
 
-    public void addBounty(UUID target, UUID assigner, double amount, int killerPercent, boolean isAnonymous) {
+    public void addBounty(UUID target, UUID assigner, double amount, ItemStack item, int killerPercent, boolean isAnonymous) {
         Bounty bounty = bounties.computeIfAbsent(target, Bounty::new);
-        bounty.addContribution(new Contribution(assigner, amount, killerPercent, isAnonymous));
+        bounty.addContribution(new Contribution(assigner, amount, item, killerPercent, isAnonymous));
         long globalSeconds = plugin.getConfig().getLong("settings.global-expiration-seconds", 604800);
         bounty.setGlobalExpireTime(System.currentTimeMillis() + (globalSeconds * 1000L));
     }
@@ -173,12 +175,27 @@ public class BountyManager {
         FileConfiguration config = plugin.getConfig();
         String type = config.getString("settings.bounty-take-cost.type", "PERCENT");
         double value = config.getDouble("settings.bounty-take-cost.value", 10.0);
-        if (type.equalsIgnoreCase("PERCENT")) return bounty.getTotalBank() * (value / 100.0);
-        return value;
+        double itemCost = 0.0;
+
+        if (bounty.getContributions().stream().anyMatch(c -> c.getItem() != null)) {
+            itemCost = config.getDouble("settings.bounty-take-cost.item-only-cost", 500.0);
+        }
+
+        if (type.equalsIgnoreCase("PERCENT")) {
+            return (bounty.getTotalBank() * (value / 100.0)) + itemCost;
+        }
+        return value + itemCost;
     }
 
     public double calculateBuyoutCost(Bounty bounty) {
-        return bounty.getTotalBank() * plugin.getConfig().getDouble("settings.buyout.multiplier", 1.5);
+        double bank = bounty.getTotalBank();
+        double itemCost = 0.0;
+
+        if (bounty.getContributions().stream().anyMatch(c -> c.getItem() != null)) {
+            itemCost = plugin.getConfig().getDouble("settings.buyout.item-only-cost", 5000.0);
+        }
+
+        return (bank * plugin.getConfig().getDouble("settings.buyout.multiplier", 1.5)) + itemCost;
     }
 
     public void completeBounty(UUID target, Player killer) {
@@ -188,10 +205,17 @@ public class BountyManager {
         FileConfiguration config = plugin.getConfig();
         String prefix = config.getString("messages.prefix");
         String symbol = config.getString("settings.currency-symbol");
+        String itemRewardText = config.getString("settings.item-reward-text", "&b[Предмет]");
         String targetName = Bukkit.getOfflinePlayer(target).getName() != null ? Bukkit.getOfflinePlayer(target).getName() : "Unknown";
         double totalEarned = 0;
+        boolean hasItems = false;
 
         for (Contribution c : bounty.getContributions()) {
+            if (c.getItem() != null) {
+                hasItems = true;
+                killer.getInventory().addItem(c.getItem()).values().forEach(i -> killer.getWorld().dropItem(killer.getLocation(), i));
+            }
+
             double killerShare = c.getAmount() * (c.getKillerPercentage() / 100.0);
             double assignerShare = c.getAmount() - killerShare;
             totalEarned += killerShare;
@@ -213,11 +237,19 @@ public class BountyManager {
         plugin.getStatsManager().addCompleted(killer.getUniqueId());
         bounties.remove(target);
 
-        String msg = config.getString("messages.bounty-completed")
+        String moneyStr = totalEarned > 0 ? ColorUtils.formatMoney(totalEarned) : "";
+        String symbolStr = totalEarned > 0 ? symbol : "";
+        String itemStr = hasItems ? itemRewardText : "";
+
+        String msg = config.getString("messages.bounty-completed", "<gradient:#f12711:#f5af19>☠ Вы убили {target} и получили {money}{symbol} {item}!</gradient>")
                 .replace("{target}", targetName)
-                .replace("{money}", ColorUtils.formatMoney(totalEarned))
-                .replace("{symbol}", symbol);
-        killer.sendMessage(ColorUtils.colorize(killer, prefix + msg));
+                .replace("{money}", moneyStr)
+                .replace("{symbol}", symbolStr)
+                .replace("{item}", itemStr);
+
+        msg = msg.replace("  ", " ").replace(" !", "!").replace(" .", ".");
+
+        killer.sendMessage(ColorUtils.colorize(killer, prefix + msg.trim()));
         playSound(killer, "complete");
 
         if (config.getBoolean("settings.trophy-head.enabled")) {
@@ -230,11 +262,12 @@ public class BountyManager {
                 SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm");
                 String dateStr = sdf.format(new Date());
 
+                String moneyMsg = totalEarned > 0 ? ColorUtils.formatMoney(totalEarned) + symbol : itemRewardText;
                 for (String line : config.getStringList("settings.trophy-head.lore")) {
                     lore.add(ColorUtils.colorize(killer, line
                             .replace("{hunter}", killer.getName())
-                            .replace("{money}", ColorUtils.formatMoney(totalEarned))
-                            .replace("{symbol}", symbol)
+                            .replace("{money}", moneyMsg)
+                            .replace("{symbol}", totalEarned > 0 ? "" : symbol)
                             .replace("{date}", dateStr)
                     ));
                 }
@@ -252,6 +285,7 @@ public class BountyManager {
             String actionBarMsg = config.getString("settings.actionbar.message", "");
             boolean pauseOffline = config.getBoolean("settings.pause-timer-on-offline", true);
             String symbol = config.getString("settings.currency-symbol");
+            String itemRewardText = config.getString("settings.item-reward-text", "&b[Предмет]");
             long now = System.currentTimeMillis();
             String prefix = config.getString("messages.prefix");
 
@@ -271,6 +305,15 @@ public class BountyManager {
                                 refund += anonCost;
                             }
                             ru.asteris.astlib.Main.getInstance().getVaultManager().deposit(Bukkit.getOfflinePlayer(c.getAssigner()), refund);
+
+                            if (c.getItem() != null) {
+                                Player assigner = Bukkit.getPlayer(c.getAssigner());
+                                if (assigner != null && assigner.isOnline()) {
+                                    assigner.getInventory().addItem(c.getItem()).values().forEach(i -> assigner.getWorld().dropItem(assigner.getLocation(), i));
+                                } else {
+                                    db.addReturnedItem(c.getAssigner(), c.getItem());
+                                }
+                            }
                         }
 
                         String targetName = Bukkit.getOfflinePlayer(bounty.getTarget()).getName();
@@ -304,10 +347,11 @@ public class BountyManager {
                     if (hunter != null) {
                         OfflinePlayer targetPlayer = Bukkit.getOfflinePlayer(bounty.getTarget());
                         String name = targetPlayer.getName() != null ? targetPlayer.getName() : "Unknown";
+                        String moneyStr = bounty.getTotalBank() > 0 ? ColorUtils.formatMoney(bounty.getTotalBank()) + symbol : itemRewardText;
                         String msg = actionBarMsg
                                 .replace("{name}", name)
-                                .replace("{money}", ColorUtils.formatMoney(bounty.getTotalBank()))
-                                .replace("{symbol}", symbol);
+                                .replace("{money}", moneyStr)
+                                .replace("{symbol}", "");
                         hunter.sendActionBar(ColorUtils.colorize(hunter, msg));
                     }
                 }

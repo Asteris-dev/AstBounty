@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import ru.asteris.astbounty.Main;
 import ru.asteris.astbounty.managers.Bounty;
 import ru.asteris.astbounty.managers.Contribution;
@@ -28,6 +29,7 @@ public class BountyCommand extends AbstractCommand {
 
         String prefix = plugin.getConfig().getString("messages.prefix");
         String symbol = plugin.getConfig().getString("settings.currency-symbol");
+        String itemRewardText = plugin.getConfig().getString("settings.item-reward-text", "&b[Предмет]");
 
         if (!player.hasPermission("astbounty.use")) {
             player.sendMessage(ColorUtils.colorize(player, prefix + plugin.getConfig().getString("messages.no-permission")));
@@ -40,7 +42,7 @@ public class BountyCommand extends AbstractCommand {
             return;
         }
 
-        if (args.length == 0) {
+        if (args.length == 1 && args[0].equalsIgnoreCase("menu")) {
             if (plugin.getBountyManager().hasActiveBounty(player.getUniqueId())) {
                 for (Bounty b : plugin.getBountyManager().getAllBounties()) {
                     if (player.getUniqueId().equals(b.getHunter())) {
@@ -49,12 +51,19 @@ public class BountyCommand extends AbstractCommand {
                                 plugin.getConfig().getString("messages.status-online") :
                                 plugin.getConfig().getString("messages.status-offline");
 
+                        String moneyStr = b.getTotalBank() > 0 ? ColorUtils.formatMoney(b.getTotalBank()) + symbol : "";
+                        String itemStr = b.getContributions().stream().anyMatch(c -> c.getItem() != null) ? itemRewardText : "";
+
                         String msg = plugin.getConfig().getString("messages.current-bounty-status")
                                 .replace("{target}", target.getName() != null ? target.getName() : "Unknown")
                                 .replace("{status}", statusStr)
-                                .replace("{money}", ColorUtils.formatMoney(b.getTotalBank()))
+                                .replace("{money}", moneyStr)
+                                .replace("{item}", itemStr)
                                 .replace("{time}", plugin.getBountyManager().formatTime(b.getTimeLeft()))
-                                .replace("{symbol}", symbol);
+                                .replace("{symbol}", "");
+
+                        msg = msg.replace("  ", " ").replace(" | | ", " | ");
+
                         player.sendMessage(ColorUtils.colorize(player, prefix + msg));
                         plugin.getBountyManager().playSound(player, "click");
                         return;
@@ -94,28 +103,40 @@ public class BountyCommand extends AbstractCommand {
                 return;
             }
 
-            int amount;
-            try {
-                amount = Integer.parseInt(args[1]);
-                if (amount <= 0) throw new NumberFormatException();
-            } catch (NumberFormatException e) {
-                player.sendMessage(ColorUtils.colorize(player, prefix + plugin.getConfig().getString("messages.invalid-amount")));
-                plugin.getBountyManager().playSound(player, "error");
-                return;
-            }
+            double amount = 0;
+            ItemStack itemReward = null;
 
-            int minAmount = plugin.getConfig().getInt("settings.min-bounty-amount");
-            if (amount < minAmount) {
-                String msg = plugin.getConfig().getString("messages.min-amount").replace("{money}", ColorUtils.formatMoney(minAmount)).replace("{symbol}", symbol);
-                player.sendMessage(ColorUtils.colorize(player, prefix + msg));
-                plugin.getBountyManager().playSound(player, "error");
-                return;
-            }
+            if (args[1].equalsIgnoreCase("item")) {
+                itemReward = player.getInventory().getItemInMainHand().clone();
+                if (itemReward == null || itemReward.getType() == org.bukkit.Material.AIR) {
+                    String msg = plugin.getConfig().getString("messages.must-hold-item", "&cДля заказа предметом нужно взять его в руку!");
+                    player.sendMessage(ColorUtils.colorize(player, prefix + msg));
+                    plugin.getBountyManager().playSound(player, "error");
+                    return;
+                }
+            } else {
+                try {
+                    amount = Double.parseDouble(args[1]);
+                    if (amount <= 0) throw new NumberFormatException();
+                } catch (NumberFormatException e) {
+                    player.sendMessage(ColorUtils.colorize(player, prefix + plugin.getConfig().getString("messages.invalid-amount")));
+                    plugin.getBountyManager().playSound(player, "error");
+                    return;
+                }
 
-            if (ru.asteris.astlib.Main.getInstance().getVaultManager().getBalance(player) < amount) {
-                player.sendMessage(ColorUtils.colorize(player, prefix + plugin.getConfig().getString("messages.not-enough-money")));
-                plugin.getBountyManager().playSound(player, "error");
-                return;
+                int minAmount = plugin.getConfig().getInt("settings.min-bounty-amount");
+                if (amount < minAmount) {
+                    String msg = plugin.getConfig().getString("messages.min-amount").replace("{money}", ColorUtils.formatMoney(minAmount)).replace("{symbol}", symbol);
+                    player.sendMessage(ColorUtils.colorize(player, prefix + msg));
+                    plugin.getBountyManager().playSound(player, "error");
+                    return;
+                }
+
+                if (ru.asteris.astlib.Main.getInstance().getVaultManager().getBalance(player) < amount) {
+                    player.sendMessage(ColorUtils.colorize(player, prefix + plugin.getConfig().getString("messages.not-enough-money")));
+                    plugin.getBountyManager().playSound(player, "error");
+                    return;
+                }
             }
 
             if (plugin.getBountyManager().hasPlaceCooldown(player.getUniqueId(), target.getUniqueId())) {
@@ -151,13 +172,23 @@ public class BountyCommand extends AbstractCommand {
                 return;
             }
 
-            PendingBounty pending = new PendingBounty(target.getUniqueId(), amount);
+            PendingBounty pending = new PendingBounty(target.getUniqueId(), amount, itemReward);
+            if (itemReward != null) {
+                player.getInventory().setItemInMainHand(null);
+            }
             plugin.getBountyListener().addPending(player.getUniqueId(), pending);
             plugin.getMenuManager().openPercentageMenu(player, target, pending);
             return;
         }
 
-        player.sendMessage(ColorUtils.colorize(player, prefix + plugin.getConfig().getString("messages.usage")));
+        List<String> helpMessages = plugin.getConfig().getStringList("messages.help");
+        if (helpMessages.isEmpty()) {
+            player.sendMessage(ColorUtils.colorize(player, prefix + plugin.getConfig().getString("messages.usage", "&cИспользуйте: /bounty menu")));
+        } else {
+            for (String line : helpMessages) {
+                player.sendMessage(ColorUtils.colorize(player, line));
+            }
+        }
         plugin.getBountyManager().playSound(player, "error");
     }
 
@@ -166,10 +197,17 @@ public class BountyCommand extends AbstractCommand {
         List<String> completions = new ArrayList<>();
         if (args.length == 1) {
             String partialName = args[0].toLowerCase();
+            if ("menu".startsWith(partialName)) {
+                completions.add("menu");
+            }
             for (Player p : Bukkit.getOnlinePlayers()) {
                 if (p.getName().toLowerCase().startsWith(partialName)) {
                     completions.add(p.getName());
                 }
+            }
+        } else if (args.length == 2) {
+            if (!args[0].equalsIgnoreCase("menu") && "item".startsWith(args[1].toLowerCase())) {
+                completions.add("item");
             }
         }
         return completions;

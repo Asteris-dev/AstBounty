@@ -40,8 +40,19 @@ public class StatsManager {
     }
 
     public void unloadUser(UUID uuid) {
-        saveUserSync(uuid);
-        statsCache.remove(uuid);
+        PlayerStats stats = statsCache.remove(uuid);
+        if (stats == null) return;
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            String query = "REPLACE INTO astbounty_stats (uuid, placed, target, completed) VALUES (?, ?, ?, ?)";
+            try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(query)) {
+                ps.setString(1, uuid.toString());
+                ps.setInt(2, stats.placed);
+                ps.setInt(3, stats.target);
+                ps.setInt(4, stats.completed);
+                ps.executeUpdate();
+            } catch (SQLException ignored) {
+            }
+        });
     }
 
     public void saveUserSync(UUID uuid) {

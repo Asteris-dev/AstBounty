@@ -73,6 +73,14 @@ public class Main extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (bountyListener != null) {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (bountyListener.getPending(player.getUniqueId()) != null) {
+                    player.closeInventory();
+                }
+            }
+        }
+
         if (bountyManager != null) {
             bountyManager.saveBounties();
         }
